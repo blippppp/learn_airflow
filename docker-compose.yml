@@ -12,11 +12,19 @@ x-airflow-common: &airflow-common
       pandas==2.2.2
       requests==2.32.3
       apache-airflow-providers-postgres==5.11.2
+      apache-airflow-providers-amazon==8.21.0
+      apache-airflow-providers-google==10.19.0
+      apache-airflow-providers-microsoft-azure==8.2.0
+      apache-airflow-providers-sftp==4.10.1
+      apache-airflow-providers-http==4.12.0
+      apache-airflow-providers-docker==3.12.1
+      apache-airflow-providers-slack==8.7.1
   volumes:
     - ./examples:/opt/airflow/examples
     - ./dags:/opt/airflow/dags
     - ./datasets:/opt/airflow/datasets
     - ./docs:/opt/airflow/docs
+    - /var/run/docker.sock:/var/run/docker.sock:ro
   depends_on:
     postgres:
       condition: service_healthy
@@ -37,6 +45,44 @@ services:
       start_period: 5s
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add minio http://minio:9000 minioadmin minioadmin;
+      /usr/bin/mc mb minio/airflow-data;
+      /usr/bin/mc policy set public minio/airflow-data;
+      exit 0;
+      "
+
+  sftp-server:
+    image: atmoz/sftp
+    ports:
+      - '2222:22'
+    volumes:
+      - ./sftp-users:/home/airflow/upload
+    command: airflow:airflow:1001
 
   airflow-init:
     <<: *airflow-common
@@ -72,3 +118,4 @@ services:
 
 volumes:
   postgres-db-volume:
+  minio-data:
