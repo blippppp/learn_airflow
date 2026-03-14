@@ -170,6 +170,13 @@ Open http://localhost:8080 and trigger DAGs.
 
 ---
 
+
+## Architecture overview
+
+See `docs/airflow_architecture.md` for an overall Airflow architecture explanation and diagrams.
+
+---
+
 ## Learning path
 
 Follow examples in order:
