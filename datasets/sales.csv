@@ -1,0 +1,6 @@
+order_id,customer_name,quantity,unit_price
+1,Alice,2,10.5
+2,Bob,1,15.0
+3,Carol,4,7.25
+4,David,0,100.0
+5,Eve,3,8.0

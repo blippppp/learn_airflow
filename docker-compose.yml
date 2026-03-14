@@ -1,0 +1,79 @@
+version: '3.8'
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.9.2
+  env_file:
+    - .env
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/examples
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__WEBSERVER__SECRET_KEY: 'airflow-learning-secret'
+    AIRFLOW__CORE__DEFAULT_TIMEZONE: UTC
+    _PIP_ADDITIONAL_REQUIREMENTS: >-
+      pandas==2.2.2
+      requests==2.32.3
+      apache-airflow-providers-postgres==5.11.2
+  volumes:
+    - ./examples:/opt/airflow/examples
+    - ./dags:/opt/airflow/dags
+    - ./datasets:/opt/airflow/datasets
+    - ./docs:/opt/airflow/docs
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'airflow']
+      interval: 5s
+      retries: 5
+      start_period: 5s
+    volumes:
+      - postgres-db-volume:/var/lib/postgresql/data
+
+  airflow-init:
+    <<: *airflow-common
+    user: '0:0'
+    command: >
+      bash -c "
+      airflow db migrate &&
+      airflow users create \
+        --username airflow \
+        --firstname Air \
+        --lastname Flow \
+        --role Admin \
+        --email airflow@example.com \
+        --password airflow
+      "
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - '8080:8080'
+    healthcheck:
+      test: ['CMD', 'curl', '--fail', 'http://localhost:8080/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+
+volumes:
+  postgres-db-volume:
