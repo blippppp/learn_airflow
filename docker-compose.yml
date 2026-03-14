@@ -44,17 +44,16 @@ services:
 
   airflow-init:
     <<: *airflow-common
-    user: '0:0'
     command: >
       bash -c "
       airflow db migrate &&
-      airflow users create \
-        --username airflow \
-        --firstname Air \
-        --lastname Flow \
-        --role Admin \
-        --email airflow@example.com \
-        --password airflow
+      airflow users create
+      --username airflow
+      --firstname Air
+      --lastname Flow
+      --role Admin
+      --email airflow@example.com
+      --password airflow
       "
 
   airflow-webserver:
